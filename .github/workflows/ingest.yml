@@ -1,0 +1,61 @@
+name: Monthly Ingestion
+
+on:
+  schedule:
+    - cron: "0 4 1 * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Force full re-ingestion (ignore diff)"
+        required: false
+        default: "false"
+
+permissions:
+  contents: write
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+
+      - name: Fetch sources
+        run: npm run ingest:fetch
+
+      - name: Diff check
+        id: diff
+        run: |
+          npm run ingest:diff
+          if git diff --quiet data/; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Rebuild database
+        if: steps.diff.outputs.changed == 'true' || github.event.inputs.force == 'true'
+        run: npm run ingest:full
+
+      - name: Run tests
+        if: steps.diff.outputs.changed == 'true' || github.event.inputs.force == 'true'
+        run: |
+          npm run build
+          npm test
+
+      - name: Update coverage
+        if: steps.diff.outputs.changed == 'true' || github.event.inputs.force == 'true'
+        run: npm run coverage:update
+
+      - name: Commit updated data
+        if: steps.diff.outputs.changed == 'true' || github.event.inputs.force == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/
+          git commit -m "data: monthly ingestion $(date +%Y-%m-%d)" || echo "No changes to commit"
+          git push

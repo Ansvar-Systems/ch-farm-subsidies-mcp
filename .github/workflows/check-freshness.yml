@@ -1,0 +1,65 @@
+name: Check Data Freshness
+
+on:
+  schedule:
+    - cron: "0 8 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  freshness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+
+      - name: Check freshness
+        id: check
+        run: |
+          OUTPUT=$(npm run freshness:check --silent 2>&1 || true)
+          echo "$OUTPUT"
+          if echo "$OUTPUT" | grep -q '"stale"'; then
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "stale=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create issue if stale
+        if: steps.check.outputs.stale == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = `Data freshness alert: ch-farm-subsidies-mcp data is stale`;
+            const body = [
+              `The daily freshness check detected that the ingested data is older than 90 days.`,
+              ``,
+              `**Action required:** Run the ingestion workflow manually or investigate why the monthly cron did not run.`,
+              ``,
+              `\`\`\``,
+              `gh workflow run ingest.yml -R ansvar-systems/ch-farm-subsidies-mcp`,
+              `\`\`\``,
+            ].join('\n');
+
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'data-freshness',
+            });
+
+            if (existing.data.length === 0) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ['data-freshness'],
+              });
+            }

@@ -1,5 +1,5 @@
 services:
-  ch-crop-nutrients-mcp:
+  ch-farm-subsidies-mcp:
     build: .
     ports:
       - "3000:3000"

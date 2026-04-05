@@ -1,0 +1,33 @@
+{
+  "name": "io.github.Ansvar-Systems/ch-farm-subsidies",
+  "description": "Swiss farm subsidies and direct payments (Direktzahlungen) -- DZV, OELN, 7 payment categories, zone-differentiated rates, Agate guidance",
+  "version": "0.1.0",
+  "homepage": "https://github.com/ansvar-systems/ch-farm-subsidies-mcp",
+  "author": {
+    "name": "Ansvar Systems",
+    "url": "https://ansvar.eu"
+  },
+  "license": "Apache-2.0",
+  "remote": {
+    "transportType": "streamableHttp",
+    "url": "https://mcp.ansvar.eu/ch-farm-subsidies/mcp"
+  },
+  "local": {
+    "command": "npx",
+    "args": ["-y", "@ansvar/ch-farm-subsidies-mcp"]
+  },
+  "tools": [
+    "about",
+    "list_sources",
+    "check_data_freshness",
+    "search_schemes",
+    "get_scheme_details",
+    "get_payment_rates",
+    "check_eligibility",
+    "list_scheme_options",
+    "get_oeln_requirements",
+    "search_application_guidance"
+  ],
+  "jurisdiction": ["CH"],
+  "tags": ["agriculture", "subsidies", "direktzahlungen", "oeln", "switzerland", "farming"]
+}
