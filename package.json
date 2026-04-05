@@ -25,7 +25,7 @@
     "freshness:check": "tsx scripts/check-freshness.ts",
     "coverage:update": "tsx scripts/update-coverage.ts"
   },
-  "keywords": ["mcp", "agriculture", "nutrients", "grud", "farming", "crop-science", "switzerland"],
+  "keywords": ["mcp", "agriculture", "subsidies", "direktzahlungen", "oeln", "farming", "switzerland"],
   "author": "Ansvar Systems <info@ansvar.eu>",
   "license": "Apache-2.0",
   "repository": {

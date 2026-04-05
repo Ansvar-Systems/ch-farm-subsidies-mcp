@@ -42,71 +42,57 @@ export function createDatabase(dbPath?: string): Database {
 
 function initSchema(db: BetterSqlite3.Database): void {
   db.exec(`
-    CREATE TABLE IF NOT EXISTS crops (
+    CREATE TABLE IF NOT EXISTS schemes (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
-      crop_group TEXT NOT NULL,
-      typical_yield_t_ha REAL,
-      nutrient_offtake_n REAL,
-      nutrient_offtake_p2o5 REAL,
-      nutrient_offtake_k2o REAL,
-      growth_stages TEXT,
-      altitude_zone TEXT DEFAULT 'talzone',
-      jurisdiction TEXT NOT NULL DEFAULT 'CH'
-    );
-
-    CREATE TABLE IF NOT EXISTS soil_types (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      soil_group INTEGER,
-      texture TEXT,
-      drainage_class TEXT,
-      ph_class TEXT,
-      description TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS nutrient_recommendations (
-      id INTEGER PRIMARY KEY,
-      crop_id TEXT REFERENCES crops(id),
-      soil_group INTEGER,
-      altitude_zone TEXT DEFAULT 'talzone',
-      previous_crop_group TEXT,
-      n_rec_kg_ha REAL,
-      p_rec_kg_ha REAL,
-      k_rec_kg_ha REAL,
-      mg_rec_kg_ha REAL,
+      scheme_type TEXT NOT NULL,
+      category TEXT NOT NULL,
+      description TEXT,
+      legal_basis TEXT,
+      requirements TEXT,
       notes TEXT,
-      grud_section TEXT,
+      language TEXT DEFAULT 'DE',
       jurisdiction TEXT NOT NULL DEFAULT 'CH'
     );
 
-    CREATE TABLE IF NOT EXISTS manure_values (
+    CREATE TABLE IF NOT EXISTS payment_rates (
       id INTEGER PRIMARY KEY,
-      animal_category TEXT NOT NULL,
-      housing_system TEXT,
-      n_per_gve REAL,
-      p2o5_per_gve REAL,
-      k2o_per_gve REAL,
-      nh3_loss_pct REAL,
+      scheme_id TEXT REFERENCES schemes(id),
+      sub_type TEXT,
+      zone TEXT DEFAULT 'alle',
+      rate_chf REAL NOT NULL,
+      unit TEXT NOT NULL DEFAULT 'CHF/ha',
+      conditions TEXT,
       notes TEXT,
       jurisdiction TEXT NOT NULL DEFAULT 'CH'
     );
 
-    CREATE TABLE IF NOT EXISTS commodity_prices (
+    CREATE TABLE IF NOT EXISTS oeln_requirements (
       id INTEGER PRIMARY KEY,
-      crop_id TEXT REFERENCES crops(id),
-      market TEXT,
-      price_per_tonne REAL,
-      currency TEXT DEFAULT 'CHF',
-      price_source TEXT NOT NULL,
-      published_date TEXT,
-      retrieved_at TEXT,
-      source TEXT,
+      requirement_number INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL,
+      verification TEXT,
+      sanctions TEXT,
+      legal_reference TEXT,
+      language TEXT DEFAULT 'DE',
+      jurisdiction TEXT NOT NULL DEFAULT 'CH'
+    );
+
+    CREATE TABLE IF NOT EXISTS application_guidance (
+      id INTEGER PRIMARY KEY,
+      topic TEXT NOT NULL,
+      title TEXT NOT NULL,
+      body TEXT NOT NULL,
+      deadline TEXT,
+      portal TEXT,
+      legal_reference TEXT,
+      language TEXT DEFAULT 'DE',
       jurisdiction TEXT NOT NULL DEFAULT 'CH'
     );
 
     CREATE VIRTUAL TABLE IF NOT EXISTS search_index USING fts5(
-      title, body, crop_group, jurisdiction
+      title, body, scheme_type, jurisdiction
     );
 
     CREATE TABLE IF NOT EXISTS db_metadata (
@@ -115,20 +101,20 @@ function initSchema(db: BetterSqlite3.Database): void {
     );
 
     INSERT OR IGNORE INTO db_metadata (key, value) VALUES ('schema_version', '1.0');
-    INSERT OR IGNORE INTO db_metadata (key, value) VALUES ('mcp_name', 'Switzerland Crop Nutrients MCP');
+    INSERT OR IGNORE INTO db_metadata (key, value) VALUES ('mcp_name', 'Switzerland Farm Subsidies MCP');
     INSERT OR IGNORE INTO db_metadata (key, value) VALUES ('jurisdiction', 'CH');
   `);
 }
 
-const FTS_COLUMNS = ['title', 'body', 'crop_group', 'jurisdiction'];
+const FTS_COLUMNS = ['title', 'body', 'scheme_type', 'jurisdiction'];
 
 export function ftsSearch(
   db: Database,
   query: string,
   limit: number = 20
-): { title: string; body: string; crop_group: string; jurisdiction: string; rank: number }[] {
+): { title: string; body: string; scheme_type: string; jurisdiction: string; rank: number }[] {
   const { results } = tieredFtsSearch(db, 'search_index', FTS_COLUMNS, query, limit);
-  return results as { title: string; body: string; crop_group: string; jurisdiction: string; rank: number }[];
+  return results as { title: string; body: string; scheme_type: string; jurisdiction: string; rank: number }[];
 }
 
 /**
@@ -183,7 +169,7 @@ export function tieredFtsSearch(
   }
 
   // Tier 6: LIKE fallback
-  const baseCols = ['name', 'crop_group'];
+  const baseCols = ['name', 'scheme_type'];
   const likeConditions = words.map(() =>
     `(${baseCols.map(c => `${c} LIKE ?`).join(' OR ')})`
   ).join(' AND ');
@@ -192,7 +178,7 @@ export function tieredFtsSearch(
   );
   try {
     const likeResults = db.all<Record<string, unknown>>(
-      `SELECT name as title, COALESCE(growth_stages, '') as body, crop_group, jurisdiction FROM crops WHERE ${likeConditions} LIMIT ?`,
+      `SELECT name as title, COALESCE(description, '') as body, scheme_type, jurisdiction FROM schemes WHERE ${likeConditions} LIMIT ?`,
       [...likeParams, limit]
     );
     if (likeResults.length > 0) return { tier: 'like', results: likeResults };

@@ -3,15 +3,22 @@ import { SUPPORTED_JURISDICTIONS } from '../jurisdiction.js';
 
 export function handleAbout() {
   return {
-    name: 'Switzerland Crop Nutrients MCP',
+    name: 'Switzerland Farm Subsidies MCP',
     description:
-      'Swiss crop nutrient recommendations based on GRUD (Agroscope), Suisse-Bilanz (BLW), and OELN standards. ' +
-      'Provides NPK planning, soil classification, nitrogen balance (Suisse-Bilanz), manure nutrient values, ' +
-      'and commodity pricing for agricultural decision-making in Switzerland.',
+      'Swiss direct payment system (Direktzahlungen) based on the DZV (SR 910.13) and BLW directives. ' +
+      'Covers all 7 payment categories: Kulturlandschaftsbeitraege, Versorgungssicherheitsbeitraege, ' +
+      'Biodiversitaetsbeitraege, Landschaftsqualitaetsbeitraege, Produktionssystembeitraege, ' +
+      'Ressourceneffizienzbeitraege, and Uebergangsbeitraege. Includes OELN requirements, ' +
+      'zone-differentiated rates, and Agate application guidance.',
     version: '0.1.0',
     jurisdiction: [...SUPPORTED_JURISDICTIONS],
-    data_sources: ['GRUD 2017 (Agroscope)', 'Suisse-Bilanz Wegleitung (BLW)', 'AGRIDEA Duengungsplanung', 'SBV Produzentenpreise'],
-    tools_count: 11,
+    data_sources: [
+      'Direktzahlungsverordnung DZV (SR 910.13)',
+      'Bundesamt fuer Landwirtschaft (BLW) Weisungen',
+      'Agrarbericht (BLW)',
+      'Agate-Portal Anmeldeformulare',
+    ],
+    tools_count: 10,
     links: {
       homepage: 'https://ansvar.eu/open-agriculture',
       repository: 'https://github.com/ansvar-systems/ch-farm-subsidies-mcp',

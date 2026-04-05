@@ -11,14 +11,13 @@ import { createDatabase } from './db.js';
 import { handleAbout } from './tools/about.js';
 import { handleListSources } from './tools/list-sources.js';
 import { handleCheckFreshness } from './tools/check-freshness.js';
-import { handleSearchCropRequirements } from './tools/search-crop-requirements.js';
-import { handleGetNutrientPlan } from './tools/get-nutrient-plan.js';
-import { handleGetSoilClassification } from './tools/get-soil-classification.js';
-import { handleListCrops } from './tools/list-crops.js';
-import { handleGetCropDetails } from './tools/get-crop-details.js';
-import { handleGetCommodityPrice } from './tools/get-commodity-price.js';
-import { handleCalculateMargin } from './tools/calculate-margin.js';
-import { handleGetManureValues } from './tools/get-manure-values.js';
+import { handleSearchSchemes } from './tools/search-schemes.js';
+import { handleGetSchemeDetails } from './tools/get-scheme-details.js';
+import { handleGetPaymentRates } from './tools/get-payment-rates.js';
+import { handleCheckEligibility } from './tools/check-eligibility.js';
+import { handleListSchemeOptions } from './tools/list-scheme-options.js';
+import { handleGetOelnRequirements } from './tools/get-oeln-requirements.js';
+import { handleSearchApplicationGuidance } from './tools/search-application-guidance.js';
 
 const SERVER_NAME = 'ch-farm-subsidies-mcp';
 const SERVER_VERSION = '0.1.0';
@@ -40,13 +39,13 @@ const TOOLS = [
     inputSchema: { type: 'object' as const, properties: {} },
   },
   {
-    name: 'search_crop_requirements',
-    description: 'Search crop nutrient requirements, soil data, and recommendations. Use for broad queries about Swiss crops and nutrients.',
+    name: 'search_schemes',
+    description: 'Search across all Swiss direct payment schemes (Direktzahlungen). Use for broad queries about subsidies, payments, and agricultural support programmes.',
     inputSchema: {
       type: 'object' as const,
       properties: {
         query: { type: 'string', description: 'Free-text search query (German, French, or English)' },
-        crop_group: { type: 'string', description: 'Filter by crop group (e.g. getreide, oelsaaten, hackfruechte)' },
+        scheme_type: { type: 'string', description: 'Filter by scheme type (e.g. kulturlandschaft, versorgungssicherheit, biodiversitaet, landschaftsqualitaet, produktionssystem, ressourceneffizienz, tierwohl)' },
         jurisdiction: { type: 'string', description: 'ISO 3166-1 alpha-2 code (default: CH)' },
         limit: { type: 'number', description: 'Max results (default: 20, max: 50)' },
       },
@@ -54,147 +53,117 @@ const TOOLS = [
     },
   },
   {
-    name: 'get_nutrient_plan',
-    description: 'Get NPK+Mg fertiliser recommendation for a specific crop and soil type. Based on GRUD (Agroscope).',
+    name: 'get_scheme_details',
+    description: 'Get full details for a specific direct payment scheme: requirements, rates by zone, legal basis, and conditions.',
     inputSchema: {
       type: 'object' as const,
       properties: {
-        crop: { type: 'string', description: 'Crop ID or name (e.g. winterweizen, winterraps)' },
-        soil_type: { type: 'string', description: 'Soil type ID or name (e.g. mittlerer-lehm)' },
-        altitude_zone: { type: 'string', description: 'Altitude zone: talzone, huegelzone, bergzone_i-iv (default: talzone)' },
-        previous_crop: { type: 'string', description: 'Previous crop group for rotation adjustment' },
+        scheme_id: { type: 'string', description: 'Scheme ID (e.g. kulturlandschaft-hangbeitrag, versorgung-basis-acker, biodiv-bff-qi)' },
         jurisdiction: { type: 'string', description: 'ISO 3166-1 alpha-2 code (default: CH)' },
       },
-      required: ['crop', 'soil_type'],
+      required: ['scheme_id'],
     },
   },
   {
-    name: 'get_soil_classification',
-    description: 'Get soil group, characteristics, pH class, and drainage for a Swiss soil type.',
+    name: 'get_payment_rates',
+    description: 'Get payment rates for a scheme, optionally filtered by altitude zone. Returns CHF rates per unit (ha, GVE, NST).',
     inputSchema: {
       type: 'object' as const,
       properties: {
-        soil_type: { type: 'string', description: 'Soil type ID or name' },
-        texture: { type: 'string', description: 'Soil texture (e.g. lehm, ton, sand)' },
-        ph_class: { type: 'string', description: 'pH class (A-E)' },
+        scheme_id: { type: 'string', description: 'Scheme ID' },
+        zone: { type: 'string', description: 'Altitude zone: talzone, huegelzone, bergzone_i, bergzone_ii, bergzone_iii, bergzone_iv, soemmerungsgebiet' },
+        jurisdiction: { type: 'string', description: 'ISO 3166-1 alpha-2 code (default: CH)' },
+      },
+      required: ['scheme_id'],
+    },
+  },
+  {
+    name: 'check_eligibility',
+    description: 'Check which direct payment schemes a farm is eligible for, based on land type, zone, and farm type. Returns applicable schemes and OELN prerequisite.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        land_type: { type: 'string', description: 'Land type (e.g. offene Ackerflaeche, Dauergruenland, BFF, Alpweide, Rebflaeche)' },
+        zone: { type: 'string', description: 'Altitude zone (default: talzone)' },
+        farm_type: { type: 'string', description: 'Farm type (e.g. Bio, Extenso, konventionell, Milchwirtschaft, Mutterkuh)' },
+        jurisdiction: { type: 'string', description: 'ISO 3166-1 alpha-2 code (default: CH)' },
+      },
+      required: ['land_type'],
+    },
+  },
+  {
+    name: 'list_scheme_options',
+    description: 'List all options within a payment category, or all categories if no scheme_id given. Use to discover available schemes.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        scheme_id: { type: 'string', description: 'Scheme ID to get sub-options. Omit to list all categories.' },
         jurisdiction: { type: 'string', description: 'ISO 3166-1 alpha-2 code (default: CH)' },
       },
     },
   },
   {
-    name: 'list_crops',
-    description: 'List all crops in the database, optionally filtered by crop group.',
+    name: 'get_oeln_requirements',
+    description: 'Get OELN (Oekologischer Leistungsnachweis) requirements — the prerequisite for all Swiss direct payments. Returns all 12 requirements or a specific one.',
     inputSchema: {
       type: 'object' as const,
       properties: {
-        crop_group: { type: 'string', description: 'Filter by crop group (e.g. getreide)' },
+        requirement_id: { type: 'string', description: 'Requirement number (1-12) or omit to list all' },
         jurisdiction: { type: 'string', description: 'ISO 3166-1 alpha-2 code (default: CH)' },
       },
     },
   },
   {
-    name: 'get_crop_details',
-    description: 'Get full profile for a crop: GRUD nutrient norms, typical yields, growth stages.',
+    name: 'search_application_guidance',
+    description: 'Search Agate portal filing guidance: deadlines, application process, required documents, common mistakes.',
     inputSchema: {
       type: 'object' as const,
       properties: {
-        crop: { type: 'string', description: 'Crop ID or name' },
+        query: { type: 'string', description: 'Free-text search query about application process' },
         jurisdiction: { type: 'string', description: 'ISO 3166-1 alpha-2 code (default: CH)' },
       },
-      required: ['crop'],
-    },
-  },
-  {
-    name: 'get_commodity_price',
-    description: 'Get latest Swiss commodity price for a crop. Warns if data is stale (>14 days).',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        crop: { type: 'string', description: 'Crop ID or name' },
-        market: { type: 'string', description: 'Market type (e.g. produzentenpreis, franko-muehle)' },
-        jurisdiction: { type: 'string', description: 'ISO 3166-1 alpha-2 code (default: CH)' },
-      },
-      required: ['crop'],
-    },
-  },
-  {
-    name: 'calculate_margin',
-    description: 'Estimate gross margin for a crop. Uses current commodity price if price_per_tonne not provided.',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        crop: { type: 'string', description: 'Crop ID or name' },
-        yield_t_ha: { type: 'number', description: 'Expected yield in tonnes per hectare' },
-        price_per_tonne: { type: 'number', description: 'Override price (CHF/t). If omitted, uses latest market price.' },
-        input_costs: { type: 'number', description: 'Total input costs per hectare (CHF). Default: 0' },
-        jurisdiction: { type: 'string', description: 'ISO 3166-1 alpha-2 code (default: CH)' },
-      },
-      required: ['crop', 'yield_t_ha'],
-    },
-  },
-  {
-    name: 'get_manure_values',
-    description: 'Get manure nutrient content (N, P2O5, K2O) per GVE by animal category and housing system. Based on GRUD manure tables.',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        animal_category: { type: 'string', description: 'Animal category (e.g. milchkuh, mastschwein, legehenne)' },
-        housing_system: { type: 'string', description: 'Housing system (e.g. laufstall, anbindestall)' },
-        jurisdiction: { type: 'string', description: 'ISO 3166-1 alpha-2 code (default: CH)' },
-      },
+      required: ['query'],
     },
   },
 ];
 
 const SearchArgsSchema = z.object({
   query: z.string(),
-  crop_group: z.string().optional(),
+  scheme_type: z.string().optional(),
   jurisdiction: z.string().optional(),
   limit: z.number().optional(),
 });
 
-const NutrientPlanArgsSchema = z.object({
-  crop: z.string(),
-  soil_type: z.string(),
-  altitude_zone: z.string().optional(),
-  previous_crop: z.string().optional(),
+const SchemeDetailsArgsSchema = z.object({
+  scheme_id: z.string(),
   jurisdiction: z.string().optional(),
 });
 
-const SoilArgsSchema = z.object({
-  soil_type: z.string().optional(),
-  texture: z.string().optional(),
-  ph_class: z.string().optional(),
+const PaymentRatesArgsSchema = z.object({
+  scheme_id: z.string(),
+  zone: z.string().optional(),
   jurisdiction: z.string().optional(),
 });
 
-const ListCropsArgsSchema = z.object({
-  crop_group: z.string().optional(),
+const EligibilityArgsSchema = z.object({
+  land_type: z.string(),
+  zone: z.string().optional(),
+  farm_type: z.string().optional(),
   jurisdiction: z.string().optional(),
 });
 
-const CropDetailsArgsSchema = z.object({
-  crop: z.string(),
+const ListSchemeOptionsArgsSchema = z.object({
+  scheme_id: z.string().optional(),
   jurisdiction: z.string().optional(),
 });
 
-const PriceArgsSchema = z.object({
-  crop: z.string(),
-  market: z.string().optional(),
+const OelnArgsSchema = z.object({
+  requirement_id: z.string().optional(),
   jurisdiction: z.string().optional(),
 });
 
-const MarginArgsSchema = z.object({
-  crop: z.string(),
-  yield_t_ha: z.number(),
-  price_per_tonne: z.number().optional(),
-  input_costs: z.number().optional(),
-  jurisdiction: z.string().optional(),
-});
-
-const ManureArgsSchema = z.object({
-  animal_category: z.string().optional(),
-  housing_system: z.string().optional(),
+const GuidanceArgsSchema = z.object({
+  query: z.string(),
   jurisdiction: z.string().optional(),
 });
 
@@ -226,22 +195,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return textResult(handleListSources(db));
       case 'check_data_freshness':
         return textResult(handleCheckFreshness(db));
-      case 'search_crop_requirements':
-        return textResult(handleSearchCropRequirements(db, SearchArgsSchema.parse(args)));
-      case 'get_nutrient_plan':
-        return textResult(handleGetNutrientPlan(db, NutrientPlanArgsSchema.parse(args)));
-      case 'get_soil_classification':
-        return textResult(handleGetSoilClassification(db, SoilArgsSchema.parse(args)));
-      case 'list_crops':
-        return textResult(handleListCrops(db, ListCropsArgsSchema.parse(args)));
-      case 'get_crop_details':
-        return textResult(handleGetCropDetails(db, CropDetailsArgsSchema.parse(args)));
-      case 'get_commodity_price':
-        return textResult(handleGetCommodityPrice(db, PriceArgsSchema.parse(args)));
-      case 'calculate_margin':
-        return textResult(handleCalculateMargin(db, MarginArgsSchema.parse(args)));
-      case 'get_manure_values':
-        return textResult(handleGetManureValues(db, ManureArgsSchema.parse(args)));
+      case 'search_schemes':
+        return textResult(handleSearchSchemes(db, SearchArgsSchema.parse(args)));
+      case 'get_scheme_details':
+        return textResult(handleGetSchemeDetails(db, SchemeDetailsArgsSchema.parse(args)));
+      case 'get_payment_rates':
+        return textResult(handleGetPaymentRates(db, PaymentRatesArgsSchema.parse(args)));
+      case 'check_eligibility':
+        return textResult(handleCheckEligibility(db, EligibilityArgsSchema.parse(args)));
+      case 'list_scheme_options':
+        return textResult(handleListSchemeOptions(db, ListSchemeOptionsArgsSchema.parse(args)));
+      case 'get_oeln_requirements':
+        return textResult(handleGetOelnRequirements(db, OelnArgsSchema.parse(args)));
+      case 'search_application_guidance':
+        return textResult(handleSearchApplicationGuidance(db, GuidanceArgsSchema.parse(args)));
       default:
         return errorResult(`Unknown tool: ${name}`);
     }

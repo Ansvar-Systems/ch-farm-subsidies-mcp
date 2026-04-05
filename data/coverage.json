@@ -1,20 +1,19 @@
 {
-  "server": "ch-crop-nutrients-mcp",
+  "server": "ch-farm-subsidies-mcp",
   "jurisdiction": "CH",
   "version": "0.1.0",
   "last_ingest": "2026-04-05",
   "data": {
-    "crops": 18,
-    "soil_types": 10,
-    "nutrient_recommendations": 15,
-    "manure_values": 11,
-    "commodity_prices": 12
+    "schemes": 20,
+    "payment_rates": 80,
+    "oeln_requirements": 12,
+    "application_guidance": 8
   },
-  "tools": 11,
+  "tools": 10,
   "sources": [
-    "GRUD 2017 (Agroscope)",
-    "Suisse-Bilanz Wegleitung (BLW)",
-    "AGRIDEA",
-    "SBV/swiss granum"
+    "Direktzahlungsverordnung DZV (SR 910.13)",
+    "BLW Weisungen",
+    "Agrarbericht (BLW)",
+    "Agate-Portal"
   ]
 }
