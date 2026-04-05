@@ -30,7 +30,7 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ansvar-systems/ch-farm-subsidies-mcp"
+    "url": "https://github.com/Ansvar-Systems/ch-farm-subsidies-mcp"
   },
   "homepage": "https://ansvar.eu/open-agriculture",
   "engines": {
