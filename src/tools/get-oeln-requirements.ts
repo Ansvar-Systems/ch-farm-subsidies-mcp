@@ -1,4 +1,5 @@
 import { buildMeta } from '../metadata.js';
+import { buildCitation } from '../citation.js';
 import { validateJurisdiction } from '../jurisdiction.js';
 import type { Database } from '../db.js';
 
@@ -31,6 +32,12 @@ export function handleGetOelnRequirements(db: Database, args: OelnArgs) {
     return {
       ...req,
       jurisdiction: jv.jurisdiction,
+      _citation: buildCitation(
+      'CH OELN Requirement',
+      `ÖLN-Anforderung ${args.requirement_id ?? 'alle'}`,
+      'get_oeln_requirements',
+      { ...(args.requirement_id ? { requirement_id: args.requirement_id } : {}) },
+    ),
       _meta: buildMeta({ source_url: 'https://www.blw.admin.ch/blw/de/home/instrumente/direktzahlungen/oekologischer-leistungsnachweis.html' }),
     };
   }
