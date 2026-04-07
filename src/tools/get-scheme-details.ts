@@ -1,4 +1,5 @@
 import { buildMeta } from '../metadata.js';
+import { buildCitation } from '../citation.js';
 import { validateJurisdiction } from '../jurisdiction.js';
 import type { Database } from '../db.js';
 
@@ -38,6 +39,12 @@ export function handleGetSchemeDetails(db: Database, args: SchemeDetailsArgs) {
   return {
     ...scheme,
     payment_rates: rates,
+    _citation: buildCitation(
+      `CH Scheme: ${scheme.name}`,
+      scheme.name,
+      'get_scheme_details',
+      { scheme_id: args.scheme_id },
+    ),
     _meta: buildMeta({ source_url: 'https://www.fedlex.admin.ch/eli/cc/2013/765/de' }),
   };
 }
