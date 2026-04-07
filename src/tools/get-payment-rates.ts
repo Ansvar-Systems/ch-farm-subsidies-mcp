@@ -1,4 +1,5 @@
 import { buildMeta } from '../metadata.js';
+import { buildCitation } from '../citation.js';
 import { validateJurisdiction } from '../jurisdiction.js';
 import type { Database } from '../db.js';
 
@@ -56,6 +57,12 @@ export function handleGetPaymentRates(db: Database, args: PaymentRatesArgs) {
     jurisdiction: jv.jurisdiction,
     results_count: rates.length,
     rates,
+    _citation: buildCitation(
+      `CH Subsidy Rates: ${scheme.name}`,
+      `Beitragssätze ${scheme.name}`,
+      'get_payment_rates',
+      { scheme_id: args.scheme_id },
+    ),
     _meta: buildMeta(),
   };
 }
